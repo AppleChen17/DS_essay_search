@@ -1,3 +1,0 @@
-The Source of Turbulence in Astrophysical Disks: An Ill-posed Problem.
-  An critical overview of the current state of research in turbulence in
-astrophysical disks.

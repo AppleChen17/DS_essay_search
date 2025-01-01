@@ -1,3 +1,0 @@
-Nonlinear force-free coronal magnetic field extrapolation scheme based
-  on the direct boundary integral formulation
-  This paper has been withdrawn by the authors.
