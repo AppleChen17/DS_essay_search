@@ -72,7 +72,7 @@ public:
 };
 
 vector <vector <Trie>> trie;// for different doc => 2 trie (for prefix && suffix)
-vector <string> Title;
+vector <string> Titles;
 
 // Utility Func
 
@@ -209,6 +209,8 @@ int main(int argc, char *argv[])
 
 		// GET TITLENAME
 		getline(fi, title_name);
+
+		Titles.emplace_back(title_name);
 
 		// CREATE TRIE
 		Trie trie1 = Trie();
