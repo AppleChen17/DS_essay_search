@@ -9,9 +9,14 @@
 #include <stack>
 #include <sstream>
 #include <algorithm>
+#include <thread>
+#include <filesystem>
+#include <mutex>
 
 using namespace std;
 using namespace chrono;
+namespace fs = std::filesystem;
+
 
 class TrieNode
 {
@@ -25,7 +30,7 @@ class TrieNode
         }
 };
 
-class Trie 
+class Trie
 {
     TrieNode* root; // root would NOT store char !!
 public:
@@ -110,6 +115,70 @@ vector<string> split(const string& str, const string& delim) {
 	return res;
 }
 
+// get the files under the directory
+vector<string> getFileList(const string& dataDir) 
+{
+    vector<string> fileList;
+    for (const auto& entry : fs::directory_iterator(dataDir)) 
+	{
+        if (entry.is_regular_file()) 
+		{
+            fileList.push_back(entry.path().string());
+        }
+    }
+    return fileList;
+}
+
+std::mutex trieMutex; // 用于保护 Trie 的互斥锁
+
+// void processFiles(Trie& trie, const vector<string>& files, int start, int end) 
+// {
+//     for (int i = start; i < end; ++i) 
+// 	{
+//         ifstream file(files[i]);
+//         if (!file.is_open()) 
+// 		{
+//             cerr << "Failed to open file: " << files[i] << endl;
+//             continue;
+//         }
+
+//         string line;
+//         while (getline(file, line)) 
+// 		{
+//             vector<string> words = split(line, " ");
+//             vector<string> parsedWords = word_parse(words);
+//             for (const string& word : parsedWords) 
+// 			{
+//                 // 加锁保护 Trie 插入操作
+//                 std::lock_guard<std::mutex> lock(trieMutex);
+//                 trie.insert(word, i);
+//             }
+//         }
+//         file.close();
+//     }
+// }
+
+// void buildTrieParallel(Trie& trie, const vector<string>& fileList, int threadCount) 
+// {
+//     vector<thread> threads;
+//     int fileCount = fileList.size();
+//     int filesPerThread = fileCount / threadCount;
+//     int remainingFiles = fileCount % threadCount;
+
+//     int start = 0;
+//     for (int i = 0; i < threadCount; ++i) 
+// 	{
+//         int end = start + filesPerThread + (i < remainingFiles ? 1 : 0);
+//         threads.emplace_back(processFiles, std::ref(trie), std::ref(fileList), start, end);
+//         start = end;
+//     }
+
+//     for (thread& t : threads) 
+// 	{
+//         t.join(); // 等待线程完成
+//     }
+//     cout << "Trie built in parallel with " << threadCount << " threads." << endl;
+// }
 
 vector<string> tokenize(const string& query) 
 {
