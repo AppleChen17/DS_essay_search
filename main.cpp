@@ -254,7 +254,9 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		if(trie[i][0].prefix("reflect"))
+		string key = "radiation";
+		// reverse(key.begin(), key.end());
+		if(trie[i][0].search(key))
 		{
 			cout << "i = " << i << "\n";
 			ofs << title_name << "\n";
@@ -270,38 +272,6 @@ int main(int argc, char *argv[])
 	auto end = high_resolution_clock::now(); // 結束計時
     auto duration = duration_cast<milliseconds>(end - start); // 計算時間
     cout << "Execution time: " << duration.count() << " ms\n";
-	// string file = data_dir + "0" + FILE_EXTENSION;
-	// fi.open("data/0.txt", ios::in);
-
-    // // GET TITLENAME
-	// getline(fi, title_name);
-
-    // // GET TITLENAME WORD ARRAY
-    // tmp_string = split(title_name, " ");
-
-	// vector<string> title = word_parse(tmp_string);
-
-	// // for(auto &word : title){
-	// // 	cout << word << endl;
-	// // }
-
-    // // GET CONTENT LINE BY LINE
-	// while(getline(fi, tmp)){
-
-    //     // GET CONTENT WORD VECTOR
-	// 	tmp_string = split(tmp, " ");
-
-	// 	// PARSE CONTENT
-	// 	vector<string> content = word_parse(tmp_string);
-
-	// 	for(auto &word : content){
-	// 		cout << word << endl;
-	// 	}
-	// 	//......
-	// }
-
-    // // CLOSE FILE
-	// fi.close();
 }
 
 
