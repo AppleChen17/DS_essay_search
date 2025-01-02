@@ -9,28 +9,28 @@
 #include <stack>
 #include <sstream>
 #include <algorithm>
-#include <thread>
-#include <filesystem>
-#include <mutex>
 
 using namespace std;
 using namespace chrono;
-namespace fs = std::filesystem;
 
+const int filecount = 100;
 
 class TrieNode
 {
     public:
-        TrieNode* child[26]; // Fixed size for lowercase English letters
-        bool isEnd;
+        vector<TrieNode*> child{vector<TrieNode*>(26, nullptr)};
+		// Fixed size for lowercase English letters
+        // TrieNode* child[26];
+		bool isEnd;
 
         TrieNode() :isEnd(false)
         {
-            for(int i = 0;i < 26;i++) child[i] = nullptr;
+			// child.resize(26);
+            // for(int i = 0;i < 26;i++) child[i] = nullptr;
         }
 };
 
-class Trie
+class Trie 
 {
     TrieNode* root; // root would NOT store char !!
 public:
@@ -70,10 +70,10 @@ public:
         return p->isEnd;
     }
     
-    bool prefix(string pre) 
-    {
-        return search(pre,true);
-    }
+    // bool prefix(string pre) 
+    // {
+    //     return search(pre,true);
+    // }
 };
 
 vector <vector <Trie>> trie;// for different doc => 2 trie (for prefix && suffix)
@@ -95,11 +95,12 @@ vector<string> word_parse(vector<string> tmp_string){
 	return parse_string;
 }
 
-vector<string> split(const string& str, const string& delim) {
+vector<string> split(const string& str, const string& delim) 
+{
 	vector<string> res;
 	if("" == str) return res;
 
-	char * strs = new char[str.length() + 1] ;
+	char * strs = new char[str.length() + 1];
 	strcpy(strs, str.c_str());
 
 	char * d = new char[delim.length() + 1];
@@ -115,71 +116,6 @@ vector<string> split(const string& str, const string& delim) {
 	return res;
 }
 
-// get the files under the directory
-vector<string> getFileList(const string& dataDir) 
-{
-    vector<string> fileList;
-    for (const auto& entry : fs::directory_iterator(dataDir)) 
-	{
-        if (entry.is_regular_file()) 
-		{
-            fileList.push_back(entry.path().string());
-        }
-    }
-    return fileList;
-}
-
-std::mutex trieMutex; // 用于保护 Trie 的互斥锁
-
-// void processFiles(Trie& trie, const vector<string>& files, int start, int end) 
-// {
-//     for (int i = start; i < end; ++i) 
-// 	{
-//         ifstream file(files[i]);
-//         if (!file.is_open()) 
-// 		{
-//             cerr << "Failed to open file: " << files[i] << endl;
-//             continue;
-//         }
-
-//         string line;
-//         while (getline(file, line)) 
-// 		{
-//             vector<string> words = split(line, " ");
-//             vector<string> parsedWords = word_parse(words);
-//             for (const string& word : parsedWords) 
-// 			{
-//                 // 加锁保护 Trie 插入操作
-//                 std::lock_guard<std::mutex> lock(trieMutex);
-//                 trie.insert(word, i);
-//             }
-//         }
-//         file.close();
-//     }
-// }
-
-// void buildTrieParallel(Trie& trie, const vector<string>& fileList, int threadCount) 
-// {
-//     vector<thread> threads;
-//     int fileCount = fileList.size();
-//     int filesPerThread = fileCount / threadCount;
-//     int remainingFiles = fileCount % threadCount;
-
-//     int start = 0;
-//     for (int i = 0; i < threadCount; ++i) 
-// 	{
-//         int end = start + filesPerThread + (i < remainingFiles ? 1 : 0);
-//         threads.emplace_back(processFiles, std::ref(trie), std::ref(fileList), start, end);
-//         start = end;
-//     }
-
-//     for (thread& t : threads) 
-// 	{
-//         t.join(); // 等待线程完成
-//     }
-//     cout << "Trie built in parallel with " << threadCount << " threads." << endl;
-// }
-
 vector<string> tokenize(const string& query) 
 {
     vector<string> tokens;
@@ -192,57 +128,134 @@ vector<string> tokenize(const string& query)
     return tokens;
 }
 
-// unordered_set<int> executeQuery(const vector<string>& tokens, Trie& trie) {
-//     stack<unordered_set<int>> operands;
-//     for (const string& token : tokens) {
-//         if (token == "+" || token == "/" || token == "-") {
-//             // 運算符
-//             auto set2 = operands.top(); operands.pop();
-//             auto set1 = operands.top(); operands.pop();
-//             unordered_set<int> result;
+std::ofstream ofs;
 
-//             if (token == "+") { // 交集
-//                 for (int doc : set1) {
-//                     if (set2.count(doc)) result.insert(doc);
-//                 }
-//             } else if (token == "/") { // 並集
-//                 result = set1;
-//                 result.insert(set2.begin(), set2.end());
-//             } else if (token == "-") { // 差集
-//                 result = set1;
-//                 for (int doc : set2) result.erase(doc);
-//             }
-//             operands.push(result);
-//         } else {
-//             // 操作數：從 Trie 中搜尋
-//             operands.push(unordered_set<int>(trie.search(token).begin(), trie.search(token).end()));
-//         }
-//     }
-//     return operands.top();
-// }
+vector<int> executeQuery(pair<string,int>& query) 
+{
+	vector<int> ans;
+	auto [ask,type] = query;
+	
+	// 0 exact
+	if(type == 0)
+	{
+		for(int i = 0;i < filecount;i++)
+		{
+			if(trie[i][0].search(ask))
+			{
+				ans.push_back(i);
+			}
+		}
+	}
 
-void processQueries(const string& queryFile) 
+	// 1 prefix
+	else if(type == 1)
+	{
+		for(int i = 0;i < filecount;i++)
+		{
+			if(trie[i][0].search(ask,true))
+			{
+				ans.push_back(i);
+			}
+		}
+	}
+
+	// 2 suffix
+	else if(type == 2)
+	{
+		reverse(ask.begin(),ask.end());
+		for(int i = 0;i < filecount;i++)
+		{
+			if(trie[i][1].search(ask,true))
+			{
+				ans.push_back(i);
+			}
+		}
+	}
+
+	// 3 wildcard
+	// else if(type == 3)
+	// {
+	// }
+	return ans;
+}
+
+void processQueries(const string& queryFile)
 {
     ifstream file(queryFile);
     string line;
+
+	// a single line query
     while (getline(file, line))
 	{
         vector<string> tokens = tokenize(line);
 		vector<pair<string,int>> v; // 0 exact | 1 prefix | 2 suffix | 3 wildcard
-		// for(auto t : tokens)
+		// deque<char> op; // operator
+		vector<char> op;
+		for(auto t : tokens)
+		{
+			// cout << t << "\n";
+			if(t == "+" || t == "/" || t == "-") op.emplace_back(t[0]);
+
+			// prefix
+			else if(isalpha(t[0])) v.push_back({t,1});
+			// exact
+			else if(t[0] == '\"' && t[t.size()-1] == '\"') v.push_back({t.substr(1,t.size()-2),0}); // cut the middle part!
+			// suffix
+			else if(t[0] == '*' && t[t.size()-1] == '*') v.push_back({t.substr(1,t.size()-2),1});
+			// wildcard
+			else if(t[0] == '<' && t[t.size()-1] == '>') v.push_back({t.substr(1,t.size()-2),3});
+		}
+		// cout << "\n";
+
+		// cout << "queries\n";
+		// for(auto qq:v)
 		// {
-		// 	cout << t << "\n";
+		// 	cout << qq.first << " " << qq.second << "\n";
+		// }
+
+		// cout << "operator\n";
+		// for(auto o:op)
+		// {
+		// 	cout << o << "\n";
 		// }
 		// cout << "\n";
 
-		// auto result = executeQuery(tokens, trie);
-		// for (int doc : result) {
-		//     cout << doc << ' ';
+		vector ans = executeQuery(v[0]);
+		ofs << "now = 0: \n";
+		for(auto a : ans)
+		{
+			ofs << Titles[a] << "\n";
+		}
+		vector<int> tmp;
+		int now = 1;
+		for(auto o:op)
+		{
+			ofs << "now = " << now << ":\n";
+			tmp = executeQuery(v[now++]);
+			for(auto a : tmp)
+			{
+				ofs << Titles[a] << "\n";
+			}
+			// if(o == '+')
+			// {
+
+			// }
+			// else if(o == '/')
+			// {
+
+			// }
+			// else if(o == '-')
+			// {
+
+			// }
+		}
+		// for(auto a : ans)
+		// {
+		// 	ofs << Titles[a] << "\n";
 		// }
 		// cout << endl;
     }
 }
-
 
 
 int main(int argc, char *argv[])
@@ -262,11 +275,10 @@ int main(int argc, char *argv[])
 
 	string file, title_name, tmp;
 	fstream fi;
-	std::ofstream ofs;
 	ofs.open("output.txt");
 	vector<string> tmp_string;
 
-	trie.assign(100, vector<Trie>());
+	trie.assign(filecount+2, vector<Trie>());
 
 	// from data_dir get file ....
 	// eg : use 0.txt in data directory
@@ -323,14 +335,14 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		string key = "radiation";
-		// reverse(key.begin(), key.end());
-		if(trie[i][0].search(key))
-		{
-			cout << "i = " << i << "\n";
-			ofs << title_name << "\n";
-			// ofs << "\n";
-		}
+		// string key = "shaped";
+		// // reverse(key.begin(), key.end());
+		// if(trie[i][0].search(key,true))
+		// {
+		// 	cout << "i = " << i << "\n";
+		// 	ofs << title_name << "\n";
+		// 	// ofs << "\n";
+		// }
 
 		// CLOSE FILE
 		fi.close();
