@@ -65,7 +65,7 @@ public:
             if(p ->child[i] == nullptr) return false;
             p = p->child[i];
         }
-        if(prefix) return true;
+        if(prefix) return true; // for prefix match !!
 
         return p->isEnd;
     }
@@ -82,11 +82,14 @@ vector <string> Titles;
 // Utility Func
 
 // string parser : output vector of strings (words) after parsing
-vector<string> word_parse(vector<string> tmp_string){
+vector<string> word_parse(vector<string> tmp_string)
+{
 	vector<string> parse_string;
-	for(auto& word : tmp_string){
+	for(auto& word : tmp_string)
+	{
 		string new_str;
-    	for(auto &ch : word){
+    	for(auto &ch : word)
+		{
 			if(isalpha(ch))
 				new_str.push_back(ch);
 		}
@@ -159,7 +162,7 @@ vector<int> executeQuery(pair<string,int>& query)
 		}
 	}
 
-	// 2 suffix
+	// 2 suffix => inverse prefix !!!
 	else if(type == 2)
 	{
 		reverse(ask.begin(),ask.end());
@@ -185,8 +188,10 @@ void processQueries(const string& queryFile)
     string line;
 
 	// a single line query
+	int cnt = 0;
     while (getline(file, line))
 	{
+		ofs << "Query " << cnt++ << ":\n";
         vector<string> tokens = tokenize(line);
 		vector<pair<string,int>> v; // 0 exact | 1 prefix | 2 suffix | 3 wildcard
 		// deque<char> op; // operator
@@ -201,7 +206,7 @@ void processQueries(const string& queryFile)
 			// exact
 			else if(t[0] == '\"' && t[t.size()-1] == '\"') v.push_back({t.substr(1,t.size()-2),0}); // cut the middle part!
 			// suffix
-			else if(t[0] == '*' && t[t.size()-1] == '*') v.push_back({t.substr(1,t.size()-2),1});
+			else if(t[0] == '*' && t[t.size()-1] == '*') v.push_back({t.substr(1,t.size()-2),2});
 			// wildcard
 			else if(t[0] == '<' && t[t.size()-1] == '>') v.push_back({t.substr(1,t.size()-2),3});
 		}
@@ -236,24 +241,60 @@ void processQueries(const string& queryFile)
 			{
 				ofs << Titles[a] << "\n";
 			}
-			// if(o == '+')
-			// {
 
-			// }
-			// else if(o == '/')
-			// {
+			if(o == '+') //both need to have !
+			{
+				for (auto it = ans.begin(); it != ans.end();) 
+				{
+					if (!binary_search(tmp.begin(), tmp.end(), *it)) 
+					{
+						it = ans.erase(it); // Erase returns the iterator to the next element.
+					} 
+					else 
+					{
+						++it;
+					}
+				}
+			}
 
-			// }
-			// else if(o == '-')
-			// {
+			else if(o == '/')
+			{
+				for(auto a:tmp)
+				{
+					if(!binary_search(ans.begin(),ans.end(),a))
+					{
+						ans.push_back(a);
+					}
+				}
+				sort(ans.begin(),ans.end());
+			}
 
-			// }
+			else if(o == '-')
+			{
+				for(auto a:tmp)
+				{
+					if(binary_search(ans.begin(),ans.end(),a))
+					{
+						auto it = find(ans.begin(),ans.end(),a);
+						ans.erase(it);
+					}
+				}
+			}
 		}
-		// for(auto a : ans)
-		// {
-		// 	ofs << Titles[a] << "\n";
-		// }
-		// cout << endl;
+
+		ofs << "Final ans:\n";
+		if(ans.size()==0) ofs << "Not Found!\n\n";
+		else
+		{
+			// by the order
+			sort(ans.begin(),ans.end());
+			for(auto a : ans)
+			{
+				ofs << Titles[a] << "\n";
+			}
+			ofs << "\n";
+		}
+
     }
 }
 
