@@ -8,12 +8,13 @@
 #include <unordered_set>
 #include <stack>
 #include <sstream>
+#include <filesystem>
 #include <algorithm>
 
 using namespace std;
 using namespace chrono;
 
-const int filecount = 100;
+int filecount = 0;
 
 class TrieNode
 {
@@ -80,6 +81,19 @@ vector <vector <Trie>> trie;// for different doc => 2 trie (for prefix && suffix
 vector <string> Titles;
 
 // Utility Func
+
+// int get_total_files(string data_dir)
+// {
+// 	int cnt = 0;
+// 	for(int i = 0;i < filecount;i++)
+// 	{
+// 		string file = data_dir + to_string(i) + FILE_EXTENSION;
+// 		ifstream fi(file);
+// 		if(fi.is_open()) cnt++;
+// 		fi.close();
+// 	}
+// 	return cnt;
+// }
 
 // string parser : output vector of strings (words) after parsing
 vector<string> word_parse(vector<string> tmp_string)
@@ -319,15 +333,24 @@ int main(int argc, char *argv[])
 	ofs.open("output.txt");
 	vector<string> tmp_string;
 
-	trie.assign(filecount+2, vector<Trie>());
+	// trie.assign(filecount+2, vector<Trie>());
 
 	// from data_dir get file ....
 	// eg : use 0.txt in data directory
 
-	for(int i = 0;i < 100;i++)
+	// get_total_files(data_dir);
+
+	while(1)
 	{
-		file = data_dir + to_string(i) + FILE_EXTENSION;
+		// cout << "filecount = " << filecount << "\n";
+		file = data_dir + to_string(filecount) + FILE_EXTENSION;
 		fi.open(file, ios::in);
+
+		if(!fi.is_open())
+		{
+			cout << "total num of files = " << filecount << "\n";
+			break;
+		}
 
 		// GET TITLENAME
 		getline(fi, title_name);
@@ -337,8 +360,9 @@ int main(int argc, char *argv[])
 		// CREATE TRIE
 		Trie trie1 = Trie();
 		Trie trie2 = Trie();
-		trie[i].push_back(trie1);
-		trie[i].push_back(trie2);
+		trie.push_back(vector<Trie>());
+		trie[filecount].push_back(trie1);
+		trie[filecount].push_back(trie2);
 
 		// GET TITLENAME WORD ARRAY
 		tmp_string = split(title_name, " ");
@@ -347,9 +371,9 @@ int main(int argc, char *argv[])
 
 		for(auto &word : title)
 		{
-			trie[i][0].insert(word);
+			trie[filecount][0].insert(word);
 			reverse(word.begin(), word.end());
-			trie[i][1].insert(word);
+			trie[filecount][1].insert(word);
 		}
 
 		// if find => use this to output !!
@@ -370,11 +394,13 @@ int main(int argc, char *argv[])
 
 			for(auto &word : content)
 			{
-				trie[i][0].insert(word);
+				trie[filecount][0].insert(word);
 				reverse(word.begin(), word.end());
-				trie[i][1].insert(word);
+				trie[filecount][1].insert(word);
 			}
 		}
+
+		filecount++;
 
 		// string key = "shaped";
 		// // reverse(key.begin(), key.end());
@@ -388,6 +414,7 @@ int main(int argc, char *argv[])
 		// CLOSE FILE
 		fi.close();
 	}
+	
 	processQueries(query);
 	ofs.close();
 
