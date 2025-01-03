@@ -23,6 +23,7 @@ class TrieNode
 		// Fixed size for lowercase English letters
         // TrieNode* child[26];
 		bool isEnd;
+		int remain_depth = 0;// initial value == 0
 
         TrieNode() :isEnd(false)
         {
@@ -33,13 +34,29 @@ class TrieNode
 
 class Trie 
 {
-    TrieNode* root; // root would NOT store char !!
 public:
-    
+    TrieNode* root; // root would NOT store char !!
+	bool wildcard_search = false; // default false
+
     Trie() 
     {
         root = new TrieNode();
+		wildcard_search = false;
     } // Trie => root would NOT put any word
+
+	// only need to calculate once !!! (because it is built and NOT changed)
+	int cal_depth(TrieNode* p)
+	{
+		if(p == nullptr) return 0;
+		if(p->remain_depth != 0) return p->remain_depth;
+
+		int depth = 0;
+		for(int i = 0;i < 26;i++)
+		{
+			depth = std::max(depth,cal_depth(p->child[i]));
+		}
+		return (p->remain_depth = depth + 1);
+	}
     
     void insert(string word) 
     {
@@ -75,25 +92,64 @@ public:
     // {
     //     return search(pre,true);
     // }
+
+	bool wildcard(TrieNode* p,string& pattern,int len,int now)
+	{
+		if(wildcard_search) return true;
+		// now => the one NEED to be matched !!!
+		if(now == len)
+		{
+			if(p->isEnd)
+			{
+				wildcard_search = true;
+				// cout << "now == len TRUE\n";
+				return true;
+			}
+			else return false;
+		}
+		if(p == nullptr) return false;
+
+		if(pattern[now] == '*')
+		{
+			if(now + 1 == len) return true; // * at the end => match all
+			else if(now+1 < len && pattern[now+1] != '*')
+			{
+				// can match further pattern
+				char c = pattern[now+1];
+				// cout << "look further c = " << c << "\n";
+				if(p->child[tolower(c)-'a'])
+				{
+					if(wildcard(p->child[tolower(c)-'a'],pattern,len,now+2))
+					{
+						// cout << "TRUE\n";
+						return true;
+					}
+				}
+				// if couldn't match here => * may match more chars
+			}
+			for(int i = 0;i < 26;i++)
+			{
+				if(wildcard(p->child[i],pattern,len,now))
+					return true;
+			}
+			return false; // cannot match
+		}
+
+		// is "char"
+		char c = pattern[now];
+		if(p->child[tolower(c)-'a'])
+		{
+			// cout << "c = " << c << "\n";
+			return wildcard(p->child[tolower(c)-'a'],pattern,len,now+1);
+		}
+		else return false;
+	}
 };
 
 vector <vector <Trie>> trie;// for different doc => 2 trie (for prefix && suffix)
 vector <string> Titles;
 
 // Utility Func
-
-// int get_total_files(string data_dir)
-// {
-// 	int cnt = 0;
-// 	for(int i = 0;i < filecount;i++)
-// 	{
-// 		string file = data_dir + to_string(i) + FILE_EXTENSION;
-// 		ifstream fi(file);
-// 		if(fi.is_open()) cnt++;
-// 		fi.close();
-// 	}
-// 	return cnt;
-// }
 
 // string parser : output vector of strings (words) after parsing
 vector<string> word_parse(vector<string> tmp_string)
@@ -190,22 +246,34 @@ vector<int> executeQuery(pair<string,int>& query)
 	}
 
 	// 3 wildcard
-	// else if(type == 3)
-	// {
-	// }
+	else if(type == 3)
+	{
+		int len = ask.size();
+		cout << "ask = " << ask << "\n";
+		for(int i = 0;i < filecount;i++)
+		{
+			trie[i][0].wildcard_search = false;
+			if(trie[i][0].wildcard(trie[i][0].root,ask,len,0))
+			{
+				ans.push_back(i);
+			}
+			trie[i][0].wildcard_search = false;
+		}
+	}
 	return ans;
 }
 
 void processQueries(const string& queryFile)
 {
+	// open up query from file !!!
     ifstream file(queryFile);
     string line;
 
-	// a single line query
+	// a single line => a query
 	int cnt = 0;
     while (getline(file, line))
 	{
-		ofs << "Query " << cnt++ << ":\n";
+		// ofs << "Query " << cnt++ << ":\n";
         vector<string> tokens = tokenize(line);
 		vector<pair<string,int>> v; // 0 exact | 1 prefix | 2 suffix | 3 wildcard
 		// deque<char> op; // operator
@@ -222,7 +290,27 @@ void processQueries(const string& queryFile)
 			// suffix
 			else if(t[0] == '*' && t[t.size()-1] == '*') v.push_back({t.substr(1,t.size()-2),2});
 			// wildcard
-			else if(t[0] == '<' && t[t.size()-1] == '>') v.push_back({t.substr(1,t.size()-2),3});
+			else if(t[0] == '<' && t[t.size()-1] == '>')
+			{
+				int len = t.size();
+				string tmp = "";
+				for(int i = 1;i < len-1;i++)
+				{
+					if(t[i] == '*') // only put in one "*" if there are continuous "*"
+					{
+						tmp += t[i];
+						while(t[i+1] == '*') i++;
+					}
+					else tmp.push_back(t[i]);
+				}
+
+				// as "prefix" match => so could understand as the last one would 
+				// NOT match anything case to deal with ! 
+				/// => cannot !!! since some of them need to match absolutely with the end
+				// if(tmp[tmp.size()-1] == '*') tmp.pop_back();
+				cout << "push in tmp = " << tmp << "\n";
+				v.push_back({tmp,3});
+			}
 		}
 		// cout << "\n";
 
@@ -240,21 +328,23 @@ void processQueries(const string& queryFile)
 		// cout << "\n";
 
 		vector ans = executeQuery(v[0]);
-		ofs << "now = 0: \n";
-		for(auto a : ans)
-		{
-			ofs << Titles[a] << "\n";
-		}
+		// ofs << "now = 0: \n";
+		// for(auto a : ans)
+		// {
+		// 	ofs << a << ": ";
+		// 	ofs << Titles[a] << "\n";
+		// }
 		vector<int> tmp;
 		int now = 1;
 		for(auto o:op)
 		{
-			ofs << "now = " << now << ":\n";
+			// ofs << "now = " << now << ":\n";
 			tmp = executeQuery(v[now++]);
-			for(auto a : tmp)
-			{
-				ofs << Titles[a] << "\n";
-			}
+			// for(auto a : tmp)
+			// {
+			// 	ofs << a << ": ";
+			// 	ofs << Titles[a] << "\n";
+			// }
 
 			if(o == '+') //both need to have !
 			{
@@ -266,7 +356,7 @@ void processQueries(const string& queryFile)
 					} 
 					else 
 					{
-						++it;
+						it++;
 					}
 				}
 			}
@@ -296,17 +386,24 @@ void processQueries(const string& queryFile)
 			}
 		}
 
-		ofs << "Final ans:\n";
-		if(ans.size()==0) ofs << "Not Found!\n\n";
+		// ofs << "Final ans:\n";
+
+		if(ans.size()==0) ofs << "Not Found!\n";
 		else
 		{
 			// by the order
 			sort(ans.begin(),ans.end());
+
+			// unique
+			auto it = std::unique(ans.begin(), ans.end());
+			//remove repeated one
+			ans.erase(it, ans.end());
+
 			for(auto a : ans)
 			{
 				ofs << Titles[a] << "\n";
 			}
-			ofs << "\n";
+			// ofs << "\n";
 		}
 
     }
@@ -346,6 +443,7 @@ int main(int argc, char *argv[])
 		file = data_dir + to_string(filecount) + FILE_EXTENSION;
 		fi.open(file, ios::in);
 
+		// if(fi.fail()) cout << "file " << filecount << " fail\n";
 		if(!fi.is_open())
 		{
 			cout << "total num of files = " << filecount << "\n";
@@ -376,6 +474,11 @@ int main(int argc, char *argv[])
 			trie[filecount][1].insert(word);
 		}
 
+		trie[filecount][0].root->remain_depth = trie[filecount][0].cal_depth(trie[filecount][0].root);
+		// trie[filecount][1].root->remain_depth = trie[filecount][1].cal_depth(trie[filecount][1].root);
+		// only the [0] need to do wildcard
+		// cout << "root depth = " << trie[filecount][0].root->remain_depth << "\n";
+
 		// if find => use this to output !!
 		// for(auto &word : tmp_string)
 		// {
@@ -402,6 +505,9 @@ int main(int argc, char *argv[])
 
 		filecount++;
 
+		// CLOSE FILE
+		fi.close();
+
 		// string key = "shaped";
 		// // reverse(key.begin(), key.end());
 		// if(trie[i][0].search(key,true))
@@ -410,12 +516,10 @@ int main(int argc, char *argv[])
 		// 	ofs << title_name << "\n";
 		// 	// ofs << "\n";
 		// }
-
-		// CLOSE FILE
-		fi.close();
 	}
 	
 	processQueries(query);
+
 	ofs.close();
 
 	auto end = high_resolution_clock::now(); // 結束計時
