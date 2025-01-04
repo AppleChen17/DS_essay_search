@@ -1,16 +1,19 @@
 #define FILE_EXTENSION ".txt"
+#define MAX_NUM 11000
 #include <fstream>
 #include <string>
 #include <cstring>
 #include <vector>
 #include <iostream>
 #include <chrono>
-#include <unordered_set>
-#include <stack>
 #include <sstream>
-// #include <filesystem>
 #include <algorithm>
 #include <bitset>
+#pragma GCC optimize("Ofast")
+#pragma GCC optimize("-ffast-math")
+#pragma GCC optimize("unroll-loops")
+#pragma GCC optimize("no-stack-protector")
+#pragma GCC optimize("-ftree-tail-merge")
 
 using namespace std;
 using namespace chrono;
@@ -26,8 +29,7 @@ class TrieNode
 		bool isEnd;
 		int remain_depth = 0;// initial value == 0
 
-        TrieNode() :isEnd(false)
-        {}
+        TrieNode() :isEnd(false){}
 };
 
 class Trie 
@@ -43,17 +45,43 @@ public:
     } // Trie => root would NOT put any word
 
 	// only need to calculate once !!! (because it is built and NOT changed)
-	int cal_depth(TrieNode* p)
+	int cal_depth(TrieNode* p) 
 	{
-		if(p == nullptr) return 0;
-		// if(p->remain_depth != 0) return p->remain_depth;
+		if (p == nullptr) return 0;
 
 		int depth = 0;
-		for(int i = 0;i < 26;i++)
+		for (int i = 0; i < 26; i++) 
 		{
-			depth = std::max(depth,cal_depth(p->child[i]));
+			depth = std::max(depth, cal_depth(p->child[i]));
 		}
-		return (p->remain_depth = depth + 1);
+		return (p->remain_depth = (p->isEnd ? std::max(depth, 0) + 1 : depth + 1));
+	}
+
+	bool wildcard(TrieNode* p, string& pattern, int len, int now) 
+	{
+		if (now == len)  return (p != nullptr && p->isEnd);
+
+		if (p == nullptr) return false;
+
+		if (pattern[now] == '*') 
+		{
+			if (wildcard(p, pattern, len, now + 1)) 
+				return true;
+
+			for (int i = 0; i < 26; i++) 
+			{
+				if (p->child[i] && wildcard(p->child[i], pattern, len, now)) 
+					return true;
+			}
+			return false;
+		}
+
+		char c = pattern[now];
+		if (p->child[c - 'a'])
+		{
+			return wildcard(p->child[c - 'a'], pattern, len, now + 1);
+		}
+		return false;
 	}
     
     void insert(string word) 
@@ -88,73 +116,59 @@ public:
         return p->isEnd;
     }
 
-	bool wildcard(TrieNode* p,string& pattern,int len,int now)
-	{
-		if(wildcard_search) return true;
-		// now => the one NEED to be matched !!!
-		if(now == len)
-		{
-			if(p->isEnd)
-			{
-				wildcard_search = true;
-				// cout << "now == len TRUE\n";
-				return true;
-			}
-			else return false;
-		}
-		if(p == nullptr) return false;
+	// bool wildcard(TrieNode* p,string& pattern,int len,int now)
+	// {
+	// 	if(wildcard_search) return true;
+	// 	// now => the one NEED to be matched !!!
+	// 	if(now == len)
+	// 	{
+	// 		if(p->isEnd)
+	// 		{
+	// 			wildcard_search = true;
+	// 			// cout << "now == len TRUE\n";
+	// 			return true;
+	// 		}
+	// 		else return false;
+	// 	}
+	// 	if(p == nullptr) return false;
 
-		if(pattern[now] == '*')
-		{
-			if(now + 1 == len) return true; // * at the end => match all
-			else if(now+1 < len && pattern[now+1] != '*')
-			{
-				// can match further pattern
-				char c = pattern[now+1];
-				// cout << "look further c = " << c << "\n";
-				if(p->child[c-'a'])
-				{
-					if(wildcard(p->child[c-'a'],pattern,len,now+2))
-					{
-						// cout << "TRUE\n";
-						return true;
-					}
-				}
-				// if couldn't match here => * may match more chars
-			}
+	// 	if(pattern[now] == '*')
+	// 	{
+	// 		if(now + 1 == len) return true; // * at the end => match all
+	// 		else if(now+1 < len && pattern[now+1] != '*')
+	// 		{
+	// 			// can match further pattern
+	// 			char c = pattern[now+1];
+	// 			// cout << "look further c = " << c << "\n";
+	// 			if(p->child[c-'a'])
+	// 			{
+	// 				if(wildcard(p->child[c-'a'],pattern,len,now+2))
+	// 				{
+	// 					// cout << "TRUE\n";
+	// 					return true;
+	// 				}
+	// 			}
+	// 			// if couldn't match here => * may match more chars
+	// 		}
 
-			for(int i = 0;i < 26;i++)
-			{
-				if(wildcard(p->child[i],pattern,len,now))
-					return true;
-			}
-			if(wildcard(p,pattern,len,now+1)) return true; // * match 0 char
-			return false; // cannot match
-		}
-		// if (pattern[now] == '*') 
-		// {
-		// 	// 0 chars
-		// 	if (wildcard(p, pattern, len, now + 1)) 
-		// 		return true;
+	// 		for(int i = 0;i < 26;i++)
+	// 		{
+	// 			if(wildcard(p->child[i],pattern,len,now))
+	// 				return true;
+	// 		}
+	// 		if(wildcard(p,pattern,len,now+1)) return true; // * match 0 char
+	// 		return false; // cannot match
+	// 	}
 
-		// 	for (int i = 0; i < 26; i++) 
-		// 	{
-		// 		if (p->child[i] && wildcard(p->child[i], pattern, len, now)) 
-		// 			return true;
-		// 	}
-		// 	return false;
-		// }
-
-
-		// is "char"
-		char c = pattern[now];
-		if(p->child[c-'a'])
-		{
-			// cout << "c = " << c << "\n";
-			return wildcard(p->child[c-'a'],pattern,len,now+1);
-		}
-		else return false;
-	}
+	// 	// is "char"
+	// 	char c = pattern[now];
+	// 	if(p->child[c-'a'])
+	// 	{
+	// 		// cout << "c = " << c << "\n";
+	// 		return wildcard(p->child[c-'a'],pattern,len,now+1);
+	// 	}
+	// 	else return false;
+	// }
 };
 
 vector <vector <Trie>> trie;// for different doc => 2 trie (for prefix && suffix)
@@ -200,7 +214,7 @@ vector<string> split(const string& str, const string& delim)
 	return res;
 }
 
-vector<string> tokenize(const string& query) 
+vector<string> tokenize(const string& query)
 {
     vector<string> tokens;
     string token;
@@ -214,10 +228,11 @@ vector<string> tokenize(const string& query)
 
 std::ofstream ofs;
 
-void executeQuery(pair<string,int>& query,vector<int>& ans) 
+void executeQuery(pair<string,int>& query,bitset<MAX_NUM>& ans) 
 {
-	// vector<int> ans;
-	auto [ask,type] = query;
+	// auto [ask,type] = query;
+	string ask = query.first;
+	int type = query.second;
 	
 	// 0 exact
 	if(type == 0)
@@ -226,7 +241,7 @@ void executeQuery(pair<string,int>& query,vector<int>& ans)
 		{
 			if(trie[i][0].search(ask))
 			{
-				ans.push_back(i);
+				ans.set(i);
 			}
 		}
 	}
@@ -238,7 +253,7 @@ void executeQuery(pair<string,int>& query,vector<int>& ans)
 		{
 			if(trie[i][0].search(ask,true))
 			{
-				ans.push_back(i);
+				ans.set(i);
 			}
 		}
 	}
@@ -251,7 +266,7 @@ void executeQuery(pair<string,int>& query,vector<int>& ans)
 		{
 			if(trie[i][1].search(ask,true))
 			{
-				ans.push_back(i);
+				ans.set(i);
 			}
 		}
 	}
@@ -266,7 +281,7 @@ void executeQuery(pair<string,int>& query,vector<int>& ans)
 			trie[i][0].wildcard_search = false;
 			if(trie[i][0].wildcard(trie[i][0].root,ask,len,0))
 			{
-				ans.push_back(i);
+				ans.set(i);
 			}
 			trie[i][0].wildcard_search = false;
 		}
@@ -300,11 +315,11 @@ void processQueries(const string& queryFile)
 			// prefix
 			else if(isalpha(t[0])) v.push_back({t,1});
 			// exact
-			else if(t[0] == '\"' && t[t.size()-1] == '\"') v.push_back({t.substr(1,t.size()-2),0}); // cut the middle part!
+			else if(t[0] == '\"') v.push_back({t.substr(1,t.size()-2),0}); // cut the middle part!
 			// suffix
-			else if(t[0] == '*' && t[t.size()-1] == '*') v.push_back({t.substr(1,t.size()-2),2});
+			else if(t[0] == '*') v.push_back({t.substr(1,t.size()-2),2});
 			// wildcard
-			else if(t[0] == '<' && t[t.size()-1] == '>')
+			else if(t[0] == '<')
 			{
 				int len = t.size();
 				string tmp = "";
@@ -327,76 +342,43 @@ void processQueries(const string& queryFile)
 			}
 		}
 
-		vector<int> ans;
+		// default initialize => all 0 !!
+		bitset<MAX_NUM> ans;
 		executeQuery(v[0],ans);
 		
 		int now = 1;
 		for(auto o:op)
 		{
-			vector<int> tmp;
+			bitset<MAX_NUM> tmp;
 			// ofs << "now = " << now << ":\n";
 			executeQuery(v[now++],tmp);
 
 			if(o == '+') //both need to have !
 			{
-				// tmp would be in ascending order since push in in order !!
-				for (auto it = ans.begin(); it != ans.end();) 
-				{
-					if (!binary_search(tmp.begin(), tmp.end(), *it)) 
-					{
-						it = ans.erase(it); // Erase returns the iterator to the next element.
-					}
-					else
-					{
-						it++;
-					}
-				}
+				ans &= tmp;
 			}
 
 			else if(o == '/')
 			{
-				sort(ans.begin(),ans.end());
-				for(auto a:tmp)
-				{
-					if(!binary_search(ans.begin(),ans.end(),a))
-					{
-						ans.push_back(a);
-					}
-				}
-				sort(ans.begin(), ans.end());
-				ans.erase(unique(ans.begin(), ans.end()), ans.end());
+				ans |= tmp;
 			}
 
 			else if(o == '-')
 			{
-				// sort(ans.begin(),ans.end());
-				for(auto a:tmp)
-				{
-					ans.erase(std::remove(ans.begin(), ans.end(), a), ans.end());
-				}
+				ans &= (~tmp);
 			}
 		}
 
 		// ofs << "Final ans:\n";
 
-		if(ans.size()==0) ofs << "Not Found!\n";
+		if(ans.none()) ofs << "Not Found!\n";
 		else
 		{
-			// by the order
-			sort(ans.begin(),ans.end());
-
-			// unique
-			// auto it = std::unique(ans.begin(), ans.end());
-			// remove repeated one
-			// ans.erase(it, ans.end());
-
-			for(auto a : ans)
+			for(int i = 0;i < filecount;i++)
 			{
-				ofs << Titles[a] << "\n";
+				if(ans[i]) ofs << Titles[i] << "\n";
 			}
-			// ofs << "\n";
 		}
-
     }
 }
 
