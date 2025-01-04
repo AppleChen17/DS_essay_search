@@ -9,11 +9,6 @@
 #include <sstream>
 #include <algorithm>
 #include <bitset>
-#pragma GCC optimize("Ofast")
-#pragma GCC optimize("-ffast-math")
-#pragma GCC optimize("unroll-loops")
-#pragma GCC optimize("no-stack-protector")
-#pragma GCC optimize("-ftree-tail-merge")
 
 using namespace std;
 using namespace chrono;
@@ -25,7 +20,6 @@ class TrieNode
     public:
         vector<TrieNode*> child{vector<TrieNode*>(26, nullptr)};
 		// Fixed size for lowercase English letters
-        // TrieNode* child[26];
 		bool isEnd;
 		int remain_depth = 0;// initial value == 0
 
@@ -38,26 +32,26 @@ public:
     TrieNode* root; // root would NOT store char !!
 	bool wildcard_search = false; // default false
 
-    Trie() 
+    Trie()
     {
         root = new TrieNode();
 		wildcard_search = false;
     } // Trie => root would NOT put any word
 
 	// only need to calculate once !!! (because it is built and NOT changed)
-	int cal_depth(TrieNode* p) 
+	int cal_depth(TrieNode* p)
 	{
 		if (p == nullptr) return 0;
 
 		int depth = 0;
-		for (int i = 0; i < 26; i++) 
+		for (int i = 0; i < 26; i++)
 		{
 			depth = std::max(depth, cal_depth(p->child[i]));
 		}
 		return (p->remain_depth = (p->isEnd ? std::max(depth, 0) + 1 : depth + 1));
 	}
 
-	bool wildcard(TrieNode* p, string& pattern, int len, int now) 
+	bool wildcard(TrieNode* p, string& pattern, int len, int now)
 	{
 		if (now == len)  return (p != nullptr && p->isEnd);
 
@@ -177,7 +171,7 @@ vector <string> Titles;
 // Utility Func
 
 // string parser : output vector of strings (words) after parsing
-vector<string> word_parse(vector<string> tmp_string)
+inline vector<string> word_parse(vector<string> tmp_string)
 {
 	vector<string> parse_string;
 	for(auto& word : tmp_string)
@@ -193,7 +187,7 @@ vector<string> word_parse(vector<string> tmp_string)
 	return parse_string;
 }
 
-vector<string> split(const string& str, const string& delim) 
+inline vector<string> split(const string& str, const string& delim) 
 {
 	vector<string> res;
 	if("" == str) return res;
@@ -207,28 +201,28 @@ vector<string> split(const string& str, const string& delim)
 	char *p = strtok(strs, d);
 	while(p) {
 		string s = p; 
-		res.push_back(s);
+		res.emplace_back(s);
 		p = strtok(NULL, d);
 	}
 
 	return res;
 }
 
-vector<string> tokenize(const string& query)
+inline vector<string> tokenize(const string& query)
 {
     vector<string> tokens;
     string token;
     stringstream ss(query);
     while (ss >> token)
 	{
-        tokens.push_back(token);
+        tokens.emplace_back(token);
     }
     return tokens;
 }
 
 std::ofstream ofs;
 
-void executeQuery(pair<string,int>& query,bitset<MAX_NUM>& ans) 
+inline void executeQuery(pair<string,int>& query,bitset<MAX_NUM>& ans) 
 {
 	// auto [ask,type] = query;
 	string ask = query.first;
@@ -289,7 +283,7 @@ void executeQuery(pair<string,int>& query,bitset<MAX_NUM>& ans)
 	// return ans;
 }
 
-void processQueries(const string& queryFile)
+inline void processQueries(const string& queryFile)
 {
 	// open up query from file !!!
     ifstream file(queryFile);
@@ -310,36 +304,84 @@ void processQueries(const string& queryFile)
 						[](unsigned char c){return std::tolower(c);});
 	
 			// cout << t << "\n";
-			if(t == "+" || t == "/" || t == "-") op.emplace_back(t[0]);
 
-			// prefix
-			else if(isalpha(t[0])) v.push_back({t,1});
-			// exact
-			else if(t[0] == '\"') v.push_back({t.substr(1,t.size()-2),0}); // cut the middle part!
-			// suffix
-			else if(t[0] == '*') v.push_back({t.substr(1,t.size()-2),2});
-			// wildcard
-			else if(t[0] == '<')
+			switch(t[0])
 			{
-				int len = t.size();
-				string tmp = "";
-				for(int i = 1;i < len-1;i++)
+				case '+':
+				case '/':
+				case '-':
 				{
-					if(t[i] == '*') // only put in one "*" if there are continuous "*"
-					{
-						tmp += t[i];
-						while(t[i+1] == '*') i++;
-					}
-					else tmp.push_back(t[i]);
+					op.emplace_back(t[0]);
+					break;
 				}
 
-				// as "prefix" match => so could understand as the last one would 
-				// NOT match anything case to deal with ! 
-				/// => cannot !!! since some of them need to match absolutely with the end
-				// if(tmp[tmp.size()-1] == '*') tmp.pop_back();
-				// cout << "push in tmp = " << tmp << "\n";
-				v.push_back({tmp,3});
+				case '\"':
+				{
+					v.emplace_back(t.substr(1,t.size()-2),0);
+					break;
+				}
+
+				case '*':
+				{
+					v.emplace_back(t.substr(1,t.size()-2),2);
+					break;
+				}
+
+				case '<':
+				{
+					int len = t.size();
+					string tmp = "";
+					for(int i = 1;i < len-1;i++)
+					{
+						if(t[i] == '*') // only put in one "*" if there are continuous "*"
+						{
+							tmp += t[i];
+							while(t[i+1] == '*') i++;
+						}
+						else tmp += t[i];
+					}
+					v.emplace_back(tmp,3);
+					break;
+				}
+				
+				default:
+				{
+					v.emplace_back(t,1);
+					break;
+				}
 			}
+
+
+			// if(t == "+" || t == "/" || t == "-") op.emplace_back(t[0]);
+
+			// // prefix
+			// else if(isalpha(t[0])) v.push_back({t,1});
+			// // exact
+			// else if(t[0] == '\"') v.push_back({t.substr(1,t.size()-2),0}); // cut the middle part!
+			// // suffix
+			// else if(t[0] == '*') v.push_back({t.substr(1,t.size()-2),2});
+			// // wildcard
+			// else if(t[0] == '<')
+			// {
+			// 	int len = t.size();
+			// 	string tmp = "";
+			// 	for(int i = 1;i < len-1;i++)
+			// 	{
+			// 		if(t[i] == '*') // only put in one "*" if there are continuous "*"
+			// 		{
+			// 			tmp += t[i];
+			// 			while(t[i+1] == '*') i++;
+			// 		}
+			// 		else tmp += t[i];
+			// 	}
+
+			// 	// as "prefix" match => so could understand as the last one would 
+			// 	// NOT match anything case to deal with ! 
+			// 	/// => cannot !!! since some of them need to match absolutely with the end
+			// 	// if(tmp[tmp.size()-1] == '*') tmp.pop_back();
+			// 	// cout << "push in tmp = " << tmp << "\n";
+			// 	v.push_back({tmp,3});
+			// }
 		}
 
 		// default initialize => all 0 !!
@@ -428,9 +470,9 @@ int main(int argc, char *argv[])
 		// CREATE TRIE
 		Trie trie1 = Trie();
 		Trie trie2 = Trie();
-		trie.push_back(vector<Trie>());
-		trie[filecount].push_back(trie1);
-		trie[filecount].push_back(trie2);
+		trie.emplace_back(vector<Trie>());
+		trie[filecount].emplace_back(trie1);
+		trie[filecount].emplace_back(trie2);
 
 		// GET TITLENAME WORD ARRAY
 		tmp_string = split(title_name, " ");
