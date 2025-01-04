@@ -8,8 +8,9 @@
 #include <unordered_set>
 #include <stack>
 #include <sstream>
-#include <filesystem>
+// #include <filesystem>
 #include <algorithm>
+#include <bitset>
 
 using namespace std;
 using namespace chrono;
@@ -26,10 +27,7 @@ class TrieNode
 		int remain_depth = 0;// initial value == 0
 
         TrieNode() :isEnd(false)
-        {
-			// child.resize(26);
-            // for(int i = 0;i < 26;i++) child[i] = nullptr;
-        }
+        {}
 };
 
 class Trie 
@@ -65,7 +63,8 @@ public:
 
         for(auto s:word)
         {
-            int i = tolower(s) - 'a';
+            // int i = tolower(s) - 'a';
+			int i = s - 'a';
             // no this path
             if(p->child[i] == nullptr) p->child[i] = new TrieNode();
             p = p->child[i];
@@ -79,7 +78,8 @@ public:
         TrieNode* p = root;
         for(auto s : word)
         {
-            int i = tolower(s) - 'a';
+            // int i = tolower(s) - 'a';
+			int i = s - 'a';
             if(p ->child[i] == nullptr) return false;
             p = p->child[i];
         }
@@ -87,11 +87,6 @@ public:
 
         return p->isEnd;
     }
-    
-    // bool prefix(string pre) 
-    // {
-    //     return search(pre,true);
-    // }
 
 	bool wildcard(TrieNode* p,string& pattern,int len,int now)
 	{
@@ -117,9 +112,9 @@ public:
 				// can match further pattern
 				char c = pattern[now+1];
 				// cout << "look further c = " << c << "\n";
-				if(p->child[tolower(c)-'a'])
+				if(p->child[c-'a'])
 				{
-					if(wildcard(p->child[tolower(c)-'a'],pattern,len,now+2))
+					if(wildcard(p->child[c-'a'],pattern,len,now+2))
 					{
 						// cout << "TRUE\n";
 						return true;
@@ -153,10 +148,10 @@ public:
 
 		// is "char"
 		char c = pattern[now];
-		if(p->child[tolower(c)-'a'])
+		if(p->child[c-'a'])
 		{
 			// cout << "c = " << c << "\n";
-			return wildcard(p->child[tolower(c)-'a'],pattern,len,now+1);
+			return wildcard(p->child[c-'a'],pattern,len,now+1);
 		}
 		else return false;
 	}
@@ -219,9 +214,9 @@ vector<string> tokenize(const string& query)
 
 std::ofstream ofs;
 
-vector<int> executeQuery(pair<string,int>& query) 
+void executeQuery(pair<string,int>& query,vector<int>& ans) 
 {
-	vector<int> ans;
+	// vector<int> ans;
 	auto [ask,type] = query;
 	
 	// 0 exact
@@ -276,7 +271,7 @@ vector<int> executeQuery(pair<string,int>& query)
 			trie[i][0].wildcard_search = false;
 		}
 	}
-	return ans;
+	// return ans;
 }
 
 void processQueries(const string& queryFile)
@@ -296,6 +291,9 @@ void processQueries(const string& queryFile)
 		vector<char> op;
 		for(auto t : tokens)
 		{
+			std::transform(t.begin(), t.end(), t.begin(), 
+						[](unsigned char c){return std::tolower(c);});
+	
 			// cout << t << "\n";
 			if(t == "+" || t == "/" || t == "-") op.emplace_back(t[0]);
 
@@ -328,39 +326,16 @@ void processQueries(const string& queryFile)
 				v.push_back({tmp,3});
 			}
 		}
-		// cout << "\n";
 
-		// cout << "queries\n";
-		// for(auto qq:v)
-		// {
-		// 	cout << qq.first << " " << qq.second << "\n";
-		// }
-
-		// cout << "operator\n";
-		// for(auto o:op)
-		// {
-		// 	cout << o << "\n";
-		// }
-		// cout << "\n";
-
-		vector ans = executeQuery(v[0]);
-		// ofs << "now = 0: \n";
-		// for(auto a : ans)
-		// {
-		// 	ofs << a << ": ";
-		// 	ofs << Titles[a] << "\n";
-		// }
-		vector<int> tmp;
+		vector<int> ans;
+		executeQuery(v[0],ans);
+		
 		int now = 1;
 		for(auto o:op)
 		{
+			vector<int> tmp;
 			// ofs << "now = " << now << ":\n";
-			tmp = executeQuery(v[now++]);
-			// for(auto a : tmp)
-			// {
-			// 	ofs << a << ": ";
-			// 	ofs << Titles[a] << "\n";
-			// }
+			executeQuery(v[now++],tmp);
 
 			if(o == '+') //both need to have !
 			{
@@ -390,14 +365,6 @@ void processQueries(const string& queryFile)
 				}
 				sort(ans.begin(), ans.end());
 				ans.erase(unique(ans.begin(), ans.end()), ans.end());
-				// for (auto a : tmp) 
-				// {
-				// 	auto it = std::lower_bound(ans.begin(), ans.end(), a); // Find insertion point.
-				// 	if (it == ans.end() || *it != a) 
-				// 	{
-				// 		ans.insert(it, a); // Insert `a` in sorted position.
-				// 	}
-				// }
 			}
 
 			else if(o == '-')
@@ -405,11 +372,6 @@ void processQueries(const string& queryFile)
 				// sort(ans.begin(),ans.end());
 				for(auto a:tmp)
 				{
-					// if(binary_search(ans.begin(),ans.end(),a))
-					// {
-					// 	auto it = find(ans.begin(),ans.end(),a);
-					// 	ans.erase(it);
-					// }
 					ans.erase(std::remove(ans.begin(), ans.end(), a), ans.end());
 				}
 			}
@@ -495,6 +457,8 @@ int main(int argc, char *argv[])
 
 		for(auto &word : title)
 		{
+			std::transform(word.begin(), word.end(), word.begin(), 
+							[](unsigned char c){return std::tolower(c);});
 			trie[filecount][0].insert(word);
 			reverse(word.begin(), word.end());
 			trie[filecount][1].insert(word);
@@ -522,6 +486,8 @@ int main(int argc, char *argv[])
 
 			for(auto &word : content)
 			{
+				std::transform(word.begin(), word.end(), word.begin(), 
+								[](unsigned char c){return std::tolower(c);});
 				trie[filecount][0].insert(word);
 				reverse(word.begin(), word.end());
 				trie[filecount][1].insert(word);
