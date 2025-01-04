@@ -19,154 +19,137 @@ class TrieNode
 {
     public:
         vector<TrieNode*> child{vector<TrieNode*>(26, nullptr)};
+		// bitset<MAX_NUM> index;
+		bitset<MAX_NUM> index_End;
+		bitset<MAX_NUM> index_prefix;
 		// Fixed size for lowercase English letters
 		bool isEnd;
-		int remain_depth = 0;// initial value == 0
 
         TrieNode() :isEnd(false){}
 };
 
-class Trie 
-{
+class Trie {
 public:
-    TrieNode* root; // root would NOT store char !!
-	bool wildcard_search = false; // default false
+    TrieNode* root;
 
-    Trie()
-    {
+    Trie() 
+	{
         root = new TrieNode();
-		wildcard_search = false;
-    } // Trie => root would NOT put any word
+    }
 
-	// only need to calculate once !!! (because it is built and NOT changed)
-	int cal_depth(TrieNode* p)
+    void insert(const string& word, int idx) 
 	{
-		if (p == nullptr) return 0;
-
-		int depth = 0;
-		for (int i = 0; i < 26; i++)
-		{
-			depth = std::max(depth, cal_depth(p->child[i]));
-		}
-		return (p->remain_depth = (p->isEnd ? std::max(depth, 0) + 1 : depth + 1));
-	}
-
-	bool wildcard(TrieNode* p, string& pattern, int len, int now)
-	{
-		if (now == len)  return (p != nullptr && p->isEnd);
-
-		if (p == nullptr) return false;
-
-		if (pattern[now] == '*') 
-		{
-			if (wildcard(p, pattern, len, now + 1)) 
-				return true;
-
-			for (int i = 0; i < 26; i++) 
-			{
-				if (p->child[i] && wildcard(p->child[i], pattern, len, now)) 
-					return true;
-			}
-			return false;
-		}
-
-		char c = pattern[now];
-		if (p->child[c - 'a'])
-		{
-			return wildcard(p->child[c - 'a'], pattern, len, now + 1);
-		}
-		return false;
-	}
-    
-    void insert(string word) 
-    {
         TrieNode* p = root;
-        //recursive => iterative !!! (較少 stack 儲存 recursion call)
-
-        for(auto s:word)
-        {
-            // int i = tolower(s) - 'a';
-			int i = s - 'a';
-            // no this path
-            if(p->child[i] == nullptr) p->child[i] = new TrieNode();
+        for (char s : word) 
+		{
+            int i = s - 'a';
+            if (p->child[i] == nullptr) 
+			{
+                p->child[i] = new TrieNode();
+            }
             p = p->child[i];
+            p->index_prefix.set(idx); // Set prefix index
         }
         p->isEnd = true;
+        p->index_End.set(idx); // Set end index
     }
-    
-    bool search(string word, bool prefix = false)
-    // could use the same function when setting prefix with initial value
-    {
+
+    void collectIndexes(TrieNode* node, bitset<MAX_NUM>& ans, bool collectEnd = false) 
+	{
+        if (node == nullptr) return;
+        if (collectEnd) 
+		{
+            ans |= node->index_End; // Collect end indexes
+        } 
+		else 
+		{
+            ans |= node->index_prefix; // Collect prefix indexes
+        }
+    }
+
+    void wildcard(TrieNode* node, const string& pattern, int len, int now, bitset<MAX_NUM>& ans) {
+        if (node == nullptr) return;
+
+        // If the entire pattern is matched
+        if (now == len) 
+		{
+            ans |= node->index_End;
+            return;
+        }
+
+        char c = pattern[now];
+
+        if (c == '*') 
+		{
+            // Try matching zero or more characters
+            wildcard(node, pattern, len, now + 1, ans); // Match zero characters
+            for (int i = 0; i < 26; ++i) 
+			{
+                if (node->child[i] != nullptr) 
+				{
+                    wildcard(node->child[i], pattern, len, now, ans); // Match one or more characters
+                }
+            }
+        } 
+		else 
+		{
+            // Match the specific character
+            int i = c - 'a';
+            if (node->child[i] != nullptr) 
+			{
+                wildcard(node->child[i], pattern, len, now + 1, ans);
+            }
+        }
+    }
+
+    void search(const string& word, bitset<MAX_NUM>& ans, bool prefix = false) 
+	{
         TrieNode* p = root;
-        for(auto s : word)
-        {
-            // int i = tolower(s) - 'a';
-			int i = s - 'a';
-            if(p ->child[i] == nullptr) return false;
+        for (char s : word) 
+		{
+            int i = s - 'a';
+            if (p->child[i] == nullptr) return;
             p = p->child[i];
         }
-        if(prefix) return true; // for prefix match !!
 
-        return p->isEnd;
+        if (prefix) 
+		{
+            collectIndexes(p, ans, false); // collect prefix indexes
+        } 
+		else 
+		{
+            ans |= p->index_End; // end indexes
+        }
     }
 
-	// bool wildcard(TrieNode* p,string& pattern,int len,int now)
-	// {
-	// 	if(wildcard_search) return true;
-	// 	// now => the one NEED to be matched !!!
-	// 	if(now == len)
-	// 	{
-	// 		if(p->isEnd)
-	// 		{
-	// 			wildcard_search = true;
-	// 			// cout << "now == len TRUE\n";
-	// 			return true;
-	// 		}
-	// 		else return false;
-	// 	}
-	// 	if(p == nullptr) return false;
+    void Write_Into_File(TrieNode* node, const string& prefix, ofstream& file) 
+	{
+        if (node->isEnd) 
+		{
+            file << prefix << " [";
+            for (int i = 0; i < MAX_NUM; i++) 
+			{
+                if (node->index_End[i]) file << i << ", ";
+            }
+            file << "]\n";
+        }
 
-	// 	if(pattern[now] == '*')
-	// 	{
-	// 		if(now + 1 == len) return true; // * at the end => match all
-	// 		else if(now+1 < len && pattern[now+1] != '*')
-	// 		{
-	// 			// can match further pattern
-	// 			char c = pattern[now+1];
-	// 			// cout << "look further c = " << c << "\n";
-	// 			if(p->child[c-'a'])
-	// 			{
-	// 				if(wildcard(p->child[c-'a'],pattern,len,now+2))
-	// 				{
-	// 					// cout << "TRUE\n";
-	// 					return true;
-	// 				}
-	// 			}
-	// 			// if couldn't match here => * may match more chars
-	// 		}
-
-	// 		for(int i = 0;i < 26;i++)
-	// 		{
-	// 			if(wildcard(p->child[i],pattern,len,now))
-	// 				return true;
-	// 		}
-	// 		if(wildcard(p,pattern,len,now+1)) return true; // * match 0 char
-	// 		return false; // cannot match
-	// 	}
-
-	// 	// is "char"
-	// 	char c = pattern[now];
-	// 	if(p->child[c-'a'])
-	// 	{
-	// 		// cout << "c = " << c << "\n";
-	// 		return wildcard(p->child[c-'a'],pattern,len,now+1);
-	// 	}
-	// 	else return false;
-	// }
+        for (int i = 0; i < 26; i++) 
+		{
+            if (node->child[i] != nullptr) 
+			{
+                Write_Into_File(node->child[i], prefix + char('a' + i), file);
+            }
+        }
+    }
 };
 
-vector <vector <Trie>> trie;// for different doc => 2 trie (for prefix && suffix)
+
+// vector <vector <Trie>> trie;// for different doc => 2 trie (for prefix && suffix)
 vector <string> Titles;
+
+Trie* trie1 = new Trie();
+Trie* trie2 = new Trie(); // for suffix => build the trie reversely
 
 // Utility Func
 
@@ -231,56 +214,29 @@ inline void executeQuery(pair<string,int>& query,bitset<MAX_NUM>& ans)
 	// 0 exact
 	if(type == 0)
 	{
-		for(int i = 0;i < filecount;i++)
-		{
-			if(trie[i][0].search(ask))
-			{
-				ans.set(i);
-			}
-		}
+		trie1->search(ask,ans,false);
 	}
 
 	// 1 prefix
 	else if(type == 1)
 	{
-		for(int i = 0;i < filecount;i++)
-		{
-			if(trie[i][0].search(ask,true))
-			{
-				ans.set(i);
-			}
-		}
+		trie1->search(ask,ans,true);
 	}
 
 	// 2 suffix => inverse prefix !!!
 	else if(type == 2)
 	{
 		reverse(ask.begin(),ask.end());
-		for(int i = 0;i < filecount;i++)
-		{
-			if(trie[i][1].search(ask,true))
-			{
-				ans.set(i);
-			}
-		}
+		// cout << "ask in type 2 = " << ask << "\n";
+		trie2->search(ask,ans,true);
 	}
 
 	// 3 wildcard
 	else if(type == 3)
 	{
 		int len = ask.size();
-		// cout << "ask = " << ask << "\n";
-		for(int i = 0;i < filecount;i++)
-		{
-			trie[i][0].wildcard_search = false;
-			if(trie[i][0].wildcard(trie[i][0].root,ask,len,0))
-			{
-				ans.set(i);
-			}
-			trie[i][0].wildcard_search = false;
-		}
+		trie1->wildcard(trie1->root,ask,len,0,ans);
 	}
-	// return ans;
 }
 
 inline void processQueries(const string& queryFile)
@@ -336,10 +292,11 @@ inline void processQueries(const string& queryFile)
 						if(t[i] == '*') // only put in one "*" if there are continuous "*"
 						{
 							tmp += t[i];
-							while(t[i+1] == '*') i++;
+							while((i+1<len) && t[i+1] == '*') i++;
 						}
 						else tmp += t[i];
 					}
+					// cout << "push in tmp = " << tmp << "\n";
 					v.emplace_back(tmp,3);
 					break;
 				}
@@ -350,38 +307,6 @@ inline void processQueries(const string& queryFile)
 					break;
 				}
 			}
-
-
-			// if(t == "+" || t == "/" || t == "-") op.emplace_back(t[0]);
-
-			// // prefix
-			// else if(isalpha(t[0])) v.push_back({t,1});
-			// // exact
-			// else if(t[0] == '\"') v.push_back({t.substr(1,t.size()-2),0}); // cut the middle part!
-			// // suffix
-			// else if(t[0] == '*') v.push_back({t.substr(1,t.size()-2),2});
-			// // wildcard
-			// else if(t[0] == '<')
-			// {
-			// 	int len = t.size();
-			// 	string tmp = "";
-			// 	for(int i = 1;i < len-1;i++)
-			// 	{
-			// 		if(t[i] == '*') // only put in one "*" if there are continuous "*"
-			// 		{
-			// 			tmp += t[i];
-			// 			while(t[i+1] == '*') i++;
-			// 		}
-			// 		else tmp += t[i];
-			// 	}
-
-			// 	// as "prefix" match => so could understand as the last one would 
-			// 	// NOT match anything case to deal with ! 
-			// 	/// => cannot !!! since some of them need to match absolutely with the end
-			// 	// if(tmp[tmp.size()-1] == '*') tmp.pop_back();
-			// 	// cout << "push in tmp = " << tmp << "\n";
-			// 	v.push_back({tmp,3});
-			// }
 		}
 
 		// default initialize => all 0 !!
@@ -467,13 +392,6 @@ int main(int argc, char *argv[])
 
 		Titles.emplace_back(title_name);
 
-		// CREATE TRIE
-		Trie trie1 = Trie();
-		Trie trie2 = Trie();
-		trie.emplace_back(vector<Trie>());
-		trie[filecount].emplace_back(trie1);
-		trie[filecount].emplace_back(trie2);
-
 		// GET TITLENAME WORD ARRAY
 		tmp_string = split(title_name, " ");
 
@@ -483,21 +401,13 @@ int main(int argc, char *argv[])
 		{
 			std::transform(word.begin(), word.end(), word.begin(), 
 							[](unsigned char c){return std::tolower(c);});
-			trie[filecount][0].insert(word);
+			trie1->insert(word,filecount);
 			reverse(word.begin(), word.end());
-			trie[filecount][1].insert(word);
+			// cout << "word = " << word << "\n";
+			// if(word == "noitisopmoced") cout << "decomposition in trie2\n";
+			// if(word == "decomposition") cout << "composition in trie1\n";
+			trie2->insert(word,filecount);
 		}
-
-		// trie[filecount][0].root->remain_depth = trie[filecount][0].cal_depth(trie[filecount][0].root);
-		// only the [0] need to do wildcard
-		// cout << "root depth = " << trie[filecount][0].root->remain_depth << "\n";
-
-		// if find => use this to output !!
-		// for(auto &word : tmp_string)
-		// {
-		// 	ofs << word << " ";
-		// }
-		// ofs << "\n";
 
 		// GET CONTENT LINE BY LINE
 		while(getline(fi, tmp))
@@ -512,29 +422,34 @@ int main(int argc, char *argv[])
 			{
 				std::transform(word.begin(), word.end(), word.begin(), 
 								[](unsigned char c){return std::tolower(c);});
-				trie[filecount][0].insert(word);
+				trie1->insert(word,filecount);
 				reverse(word.begin(), word.end());
-				trie[filecount][1].insert(word);
+				trie2->insert(word,filecount);
 			}
 		}
 
 		filecount++;
-
 		// CLOSE FILE
 		fi.close();
-
-		// string key = "shaped";
-		// // reverse(key.begin(), key.end());
-		// if(trie[i][0].search(key,true))
-		// {
-		// 	cout << "i = " << i << "\n";
-		// 	ofs << title_name << "\n";
-		// 	// ofs << "\n";
-		// }
 	}
 	
+	// bitset<MAX_NUM> ans;
+	// string key = "composition";
+	// reverse(key.begin(), key.end());
+	// cout << "key in trie2 search = " << key << "\n";
+	// trie2->search(key,ans,true);
+
+	// for(int i = 0;i < filecount;i++)
+	// {
+	// 	// if(ans[i])
+	// 	// {
+	// 		ofs << "i = " << i << "\n";
+	// 		ofs << Titles[i] << "\n";
+	// 	// }
+	// }
 	processQueries(query);
 
+	// trie1->Write_Into_File(trie1->root,"",ofs);
 	ofs.close();
 
 	auto end = high_resolution_clock::now(); // 結束計時
