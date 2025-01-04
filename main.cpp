@@ -48,7 +48,7 @@ public:
 	int cal_depth(TrieNode* p)
 	{
 		if(p == nullptr) return 0;
-		if(p->remain_depth != 0) return p->remain_depth;
+		// if(p->remain_depth != 0) return p->remain_depth;
 
 		int depth = 0;
 		for(int i = 0;i < 26;i++)
@@ -249,7 +249,7 @@ vector<int> executeQuery(pair<string,int>& query)
 	else if(type == 3)
 	{
 		int len = ask.size();
-		cout << "ask = " << ask << "\n";
+		// cout << "ask = " << ask << "\n";
 		for(int i = 0;i < filecount;i++)
 		{
 			trie[i][0].wildcard_search = false;
@@ -308,7 +308,7 @@ void processQueries(const string& queryFile)
 				// NOT match anything case to deal with ! 
 				/// => cannot !!! since some of them need to match absolutely with the end
 				// if(tmp[tmp.size()-1] == '*') tmp.pop_back();
-				cout << "push in tmp = " << tmp << "\n";
+				// cout << "push in tmp = " << tmp << "\n";
 				v.push_back({tmp,3});
 			}
 		}
@@ -348,13 +348,14 @@ void processQueries(const string& queryFile)
 
 			if(o == '+') //both need to have !
 			{
+				// tmp would be in ascending order since push in in order !!
 				for (auto it = ans.begin(); it != ans.end();) 
 				{
 					if (!binary_search(tmp.begin(), tmp.end(), *it)) 
 					{
 						it = ans.erase(it); // Erase returns the iterator to the next element.
-					} 
-					else 
+					}
+					else
 					{
 						it++;
 					}
@@ -363,6 +364,7 @@ void processQueries(const string& queryFile)
 
 			else if(o == '/')
 			{
+				sort(ans.begin(),ans.end());
 				for(auto a:tmp)
 				{
 					if(!binary_search(ans.begin(),ans.end(),a))
@@ -370,18 +372,29 @@ void processQueries(const string& queryFile)
 						ans.push_back(a);
 					}
 				}
-				sort(ans.begin(),ans.end());
+				sort(ans.begin(), ans.end());
+				ans.erase(unique(ans.begin(), ans.end()), ans.end());
+				// for (auto a : tmp) 
+				// {
+				// 	auto it = std::lower_bound(ans.begin(), ans.end(), a); // Find insertion point.
+				// 	if (it == ans.end() || *it != a) 
+				// 	{
+				// 		ans.insert(it, a); // Insert `a` in sorted position.
+				// 	}
+				// }
 			}
 
 			else if(o == '-')
 			{
+				// sort(ans.begin(),ans.end());
 				for(auto a:tmp)
 				{
-					if(binary_search(ans.begin(),ans.end(),a))
-					{
-						auto it = find(ans.begin(),ans.end(),a);
-						ans.erase(it);
-					}
+					// if(binary_search(ans.begin(),ans.end(),a))
+					// {
+					// 	auto it = find(ans.begin(),ans.end(),a);
+					// 	ans.erase(it);
+					// }
+					ans.erase(std::remove(ans.begin(), ans.end(), a), ans.end());
 				}
 			}
 		}
@@ -395,9 +408,9 @@ void processQueries(const string& queryFile)
 			sort(ans.begin(),ans.end());
 
 			// unique
-			auto it = std::unique(ans.begin(), ans.end());
-			//remove repeated one
-			ans.erase(it, ans.end());
+			// auto it = std::unique(ans.begin(), ans.end());
+			// remove repeated one
+			// ans.erase(it, ans.end());
 
 			for(auto a : ans)
 			{
@@ -474,8 +487,7 @@ int main(int argc, char *argv[])
 			trie[filecount][1].insert(word);
 		}
 
-		trie[filecount][0].root->remain_depth = trie[filecount][0].cal_depth(trie[filecount][0].root);
-		// trie[filecount][1].root->remain_depth = trie[filecount][1].cal_depth(trie[filecount][1].root);
+		// trie[filecount][0].root->remain_depth = trie[filecount][0].cal_depth(trie[filecount][0].root);
 		// only the [0] need to do wildcard
 		// cout << "root depth = " << trie[filecount][0].root->remain_depth << "\n";
 
