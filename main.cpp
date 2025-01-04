@@ -127,13 +127,29 @@ public:
 				}
 				// if couldn't match here => * may match more chars
 			}
+
 			for(int i = 0;i < 26;i++)
 			{
 				if(wildcard(p->child[i],pattern,len,now))
 					return true;
 			}
+			if(wildcard(p,pattern,len,now+1)) return true; // * match 0 char
 			return false; // cannot match
 		}
+		// if (pattern[now] == '*') 
+		// {
+		// 	// 0 chars
+		// 	if (wildcard(p, pattern, len, now + 1)) 
+		// 		return true;
+
+		// 	for (int i = 0; i < 26; i++) 
+		// 	{
+		// 		if (p->child[i] && wildcard(p->child[i], pattern, len, now)) 
+		// 			return true;
+		// 	}
+		// 	return false;
+		// }
+
 
 		// is "char"
 		char c = pattern[now];
@@ -447,9 +463,6 @@ int main(int argc, char *argv[])
 
 	// from data_dir get file ....
 	// eg : use 0.txt in data directory
-
-	// get_total_files(data_dir);
-
 	while(1)
 	{
 		// cout << "filecount = " << filecount << "\n";
